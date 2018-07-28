@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning].
 ## [Unreleased]
 
 ### Added
+- `git-profile`
 
 ### Changed
 
