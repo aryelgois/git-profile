@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# An utility to quickly change your name and email in Git
+# A utility to quickly change your name and email in Git
 #
 # Profiles are saved in the global git config
 #
@@ -9,7 +9,7 @@
 set -e
 
 PROGRAM="$(basename "$0")"
-VERSION=0.1.0
+VERSION=0.1.1
 
 
 gc='git config --global'
@@ -17,7 +17,7 @@ gc='git config --global'
 
 gitprofile_help () {
     cat <<EOF
-An utility to quickly change your name and email in Git
+A utility to quickly change your name and email in Git
 
 Profiles are saved in the global git config
 

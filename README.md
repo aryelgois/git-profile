@@ -1,6 +1,6 @@
 # git-profile
 
-An utility to quickly change your name and email in Git
+A utility to quickly change your name and email in Git
 
 
 ## Intro
