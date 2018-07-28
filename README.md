@@ -44,6 +44,9 @@ Or just copy `git-profile` into your `PATH`
 Git recognizes custom commands starting with `git-`,
 so you can use `git profile [arguments..]`
 
+Running the utility with no arguments tells the current profile
+and checks if something is overriding it.
+
 See details about each command with `git profile --help`
 (if you did not install the manual, use `-h`)
 
