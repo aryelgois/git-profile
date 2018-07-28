@@ -22,11 +22,16 @@ test-manual: $(MANUAL)
 	man ./$(MANUAL)
 
 .PHONY: install
-install: build
-	install -d $(INSTALL_BIN)
-	install -d $(INSTALL_MAN)
+install: install-bin install-manual
 
+.PHONY: install-bin
+install-bin:
+	install -d $(INSTALL_BIN)
 	install -m0755 $(SELF) $(INSTALL_BIN)
+
+.PHONY: install-manual
+install-manual: build
+	install -d $(INSTALL_MAN)
 	install -m0644 $(MANUAL) $(INSTALL_MAN)
 
 .PHONY: uninstall
