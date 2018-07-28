@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+# An utility to quickly change your name and email in Git
+#
+# Profiles are saved in the global git config
+#
+# Author: Aryel Mota Góis
+# License: MIT
+
+set -e
+
+PROGRAM="$(basename "$0")"
+VERSION=0.1.0
+
+
+gc='git config --global'
+
+
+gitprofile_help () {
+    cat <<EOF
+An utility to quickly change your name and email in Git
+
+Profiles are saved in the global git config
+
+Usage: $PROGRAM add PROFILE [NAME] [EMAIL]
+  or:  $PROGRAM rename PROFILE [NEW_PROFILE]
+  or:  $PROGRAM edit PROFILE
+  or:  $PROGRAM remove PROFILE
+  or:  $PROGRAM list
+  or:  $PROGRAM PROFILE
+  or:  $PROGRAM
+  or:  $PROGRAM -h|--help
+  or:  $PROGRAM -v|--version
+
+Options:
+  -h, --help            Output this message
+  -v, --version         Output the version, copyright and license
+
+Commands:
+  add                   Creates a new profile
+  edit                  Allows modifying a profile
+  list                  Lists all profiles
+  remove                Deletes a profile
+  rename                Allows renaming a profile
+
+Arguments:
+  PROFILE, NEW_PROFILE  Unique identifier to a profile (it could be a username)
+  NAME                  The name Git will use in commits
+  EMAIL                 The email Git will use in commits
+
+Error Codes:
+  1                     Unknown error
+  2                     Missing parameter
+  4                     Invalid PROFILE
+  8                     PROFILE already exists
+  16                    PROFILE does not exist
+  32                    Already using PROFILE
+  64                    Profile is being overriden
+EOF
+}
+
+gitprofile_version () {
+    cat <<EOF
+$PROGRAM $VERSION
+
+Copyright (C) 2018 Aryel Mota Góis
+
+License: MIT License <https://opensource.org/licenses/MIT>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+EOF
+}
+
+gitprofile_add () {
+    PROFILE=$(check_profile "$1" $# new)
+    NAME=$(read_empty "$2" 'User name')
+    EMAIL=$(read_empty "$3" 'User email')
+
+    $gc "profile.$PROFILE.name" "$NAME"
+    $gc "profile.$PROFILE.email" "$EMAIL"
+}
+
+gitprofile_edit () {
+    PROFILE=$(check_profile "$1" $# exists)
+
+    OLD_NAME=$($gc --get "profile.$PROFILE.name")
+    NAME=$(read_input "$OLD_NAME" 'User name')
+
+    OLD_EMAIL=$($gc --get "profile.$PROFILE.email")
+    EMAIL=$(read_input "$OLD_EMAIL" 'User email')
+
+    $gc "profile.$PROFILE.name" "$NAME"
+    $gc "profile.$PROFILE.email" "$EMAIL"
+
+    CURRENT=$($gc --get profile.current || true)
+    if [[ $PROFILE == $CURRENT ]]; then
+        use_profile "$PROFILE"
+    fi
+}
+
+gitprofile_list () {
+    OLD_IFS="$IFS"
+
+    PROFILES=()
+    while IFS= read -r -d '' config; do
+        read -r key <<< "$config"
+        key=${key#*.}
+        key=${key%.*}
+
+        PROFILES+=("$key")
+    done < <($gc -z --get-regexp '^profile\..*\.')
+
+    IFS=$'\n' PROFILES=($(sort -u <<< "${PROFILES[*]}"))
+    IFS="$OLD_IFS"
+
+    CURRENT=$($gc --get profile.current || true)
+
+    for PROFILE in "${PROFILES[@]}"; do
+        NAME=$($gc --get "profile.$PROFILE.name")
+        EMAIL=$($gc --get "profile.$PROFILE.email")
+        LINE="$PROFILE: $NAME <$EMAIL>"
+
+        if [[ $PROFILE == $CURRENT ]]; then
+            colored "$LINE" '1'
+        else
+            echo "$LINE"
+        fi
+    done
+}
+
+gitprofile_remove () {
+    PROFILE=$(check_profile "$1" $# exists)
+
+    $gc --remove-section "profile.$PROFILE"
+
+    CURRENT=$($gc --get profile.current || true)
+    if [[ $PROFILE == $CURRENT ]]; then
+        $gc --unset profile.current
+        $gc --unset user.name
+        $gc --unset user.email
+        echo 'Your current profile was removed, select another one'
+    fi
+}
+
+gitprofile_rename () {
+    PROFILE=$(check_profile "$1" $# exists)
+
+    NEW_PROFILE=$(read_empty "$2" 'New profile')
+    NEW_PROFILE=$(check_profile "$NEW_PROFILE" $# new)
+
+    NAME=$($gc --get "profile.$PROFILE.name")
+    EMAIL=$($gc --get "profile.$PROFILE.email")
+
+    $gc "profile.$NEW_PROFILE.name" "$NAME"
+    $gc "profile.$NEW_PROFILE.email" "$EMAIL"
+
+    $gc --remove-section "profile.$PROFILE"
+
+    CURRENT=$($gc --get profile.current || true)
+    if [[ $PROFILE == $CURRENT ]]; then
+        $gc profile.current "$NEW_PROFILE"
+    fi
+}
+
+gitprofile_use () {
+    PROFILE=$(check_profile "$1" $# exists)
+
+    CURRENT=$($gc --get profile.current || true)
+    if [[ -n $CURRENT ]]; then
+        if [[ $PROFILE == $CURRENT ]]; then
+            echoerr 32 'Error: Already using this profile'
+        else
+            echo "Changing from $CURRENT to $PROFILE"
+        fi
+    else
+        OLD_NAME=$($gc --get user.name || true)
+        OLD_EMAIL=$($gc --get user.email || true)
+        if [[ -n $OLD_NAME || -n $OLD_EMAIL ]]; then
+            echo "Changing from $OLD_NAME <$OLD_EMAIL> to $PROFILE"
+        fi
+    fi
+
+    $gc profile.current "$PROFILE"
+    use_profile "$PROFILE"
+}
+
+gitprofile_whoami () {
+    CURRENT=$($gc --get profile.current || true)
+    if [[ -n $CURRENT ]]; then
+        NAME=$($gc --get "profile.$CURRENT.name")
+        EMAIL=$($gc --get "profile.$CURRENT.email")
+
+        echo "You are $CURRENT: $NAME <$EMAIL>"
+        check_overriden
+    else
+        echo 'You are not using a profile'
+        echo "Use $PROGRAM -h for help"
+    fi
+}
+
+
+# helper
+
+check_profile () {
+    if [[ -z $1 ]]; then
+        if [[ $2 -eq 0 ]]; then
+            echoerr 2 'Error: Missing profile'
+        else
+            echoerr 4 'Error: Profile is empty'
+        fi
+    else
+        if [[ $foo == *$'\n'* ]]; then
+            echoerr 4 'Error: Profile contains invalid character'
+        fi
+    fi
+
+    set +e
+    $gc --get-regexp "^profile\.$1\." > /dev/null
+    EXISTS=$?
+    set -e
+
+    if [[ $EXISTS -eq 0 && $3 == 'new' ]]; then
+        echoerr 8 'Error: Profile already exists'
+    elif [[ $EXISTS -ne 0 && $3 == 'exists' ]]; then
+        echoerr 16 "Error: Profile '$1' does not exist"
+    fi
+
+    echo $1
+}
+
+check_overriden () {
+    OVERRIDDEN=()
+
+    gcl='git config --local'
+    $gcl --get user.name > /dev/null && OVERRIDDEN+=('User name (Local)')
+    $gcl --get user.email > /dev/null && OVERRIDDEN+=('User email (Local)')
+
+    [[ -n $GIT_COMMITTER_NAME ]] && OVERRIDDEN+=('Commiter name (ENV)')
+    [[ -n $GIT_COMMITTER_EMAIL ]] && OVERRIDDEN+=('Commiter email (ENV)')
+    [[ -n $GIT_AUTHOR_NAME ]] && OVERRIDDEN+=('Author name (ENV)')
+    [[ -n $GIT_AUTHOR_EMAIL ]] && OVERRIDDEN+=('Author email (ENV)')
+
+    if [[ ${#OVERRIDDEN[@]} -gt 0 ]]; then
+        echowarn 'Warning: your profile is being overriden by'
+        for i in "${OVERRIDDEN[@]}"; do
+            echowarn "- $i"
+        done
+        exit 64
+    fi
+}
+
+use_profile () {
+    $gc user.name "$($gc --get "profile.$1.name")"
+    $gc user.email "$($gc --get "profile.$1.email")"
+    check_overriden
+}
+
+
+# utils
+
+colored () {
+    echo $'\033['"${2:-1}m$1"$'\033[0m'
+}
+
+echoerr () {
+    >&2 colored "$2" '97;41'
+    exit $1
+}
+
+echowarn () {
+    >&2 colored "$1" '43;30'
+}
+
+read_empty () {
+    INPUT=$1
+    [[ -z $1 ]] && read -rp "$2: " INPUT
+    echo $INPUT
+}
+
+read_input () {
+    read -rp "$2 [$(colored "$1" '33')]: " INPUT
+    echo ${INPUT:-$1}
+}
+
+
+# main
+
+if [[ $# -eq 0 ]]; then
+    gitprofile_whoami
+    exit
+fi
+
+COMMAND=$1
+shift
+
+case $COMMAND in
+    -h|--help)    gitprofile_help;;
+    -v|--version) gitprofile_version;;
+    add)          gitprofile_add "$@";;
+    edit)         gitprofile_edit "$1";;
+    list)         gitprofile_list;;
+    remove)       gitprofile_remove "$1";;
+    rename)       gitprofile_rename "$@";;
+    --)           gitprofile_use "$1";;
+    *)            gitprofile_use "$COMMAND";;
+esac
