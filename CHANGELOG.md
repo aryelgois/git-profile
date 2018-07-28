@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Fixed
+- Typo in description
+
 
 ## [0.1.0] - 2018-07-28
 
