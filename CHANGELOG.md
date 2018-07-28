@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning].
 ### Added
 - `git-profile`
 - Makefile
+- Documentation
 
 ### Changed
 
