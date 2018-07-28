@@ -17,6 +17,8 @@ which map to a name and email.
 You can switch between them in one command
 and manage easily.
 
+All profiles are stored in the global Git config.
+
 Note that the profile only matters when committing
 (and amending, merging..)
 but you can push to a remote with any profile in use.
