@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning].
   and there is no current profile set
   - It also automatically sets the current profile for convenience
 - Use variables to store error codes
+- Use sequential error codes
 
 ### Deprecated
 

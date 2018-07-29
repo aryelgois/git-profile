@@ -13,12 +13,12 @@ VERSION=0.1.1
 
 ERROR_UNKNOWN=1
 ERROR_MISSING=2
-ERROR_INVALID=4
-ERROR_EXISTS=8
-ERROR_NOT_EXISTS=16
-ERROR_ALREADY_USING=32
-ERROR_OVERRIDEN=64
-ERROR_NO_CURRENT=128
+ERROR_INVALID=3
+ERROR_EXISTS=4
+ERROR_NOT_EXISTS=5
+ERROR_ALREADY_USING=6
+ERROR_OVERRIDEN=7
+ERROR_NO_CURRENT=8
 
 gc='git config --global'
 
@@ -66,10 +66,10 @@ Error Codes:
   $ERROR_MISSING                     Missing parameter
   $ERROR_INVALID                     Invalid PROFILE
   $ERROR_EXISTS                     PROFILE already exists
-  $ERROR_NOT_EXISTS                    PROFILE does not exist
-  $ERROR_ALREADY_USING                    Already using PROFILE
-  $ERROR_OVERRIDEN                    Profile is being overriden
-  $ERROR_NO_CURRENT                   Current profile is not available
+  $ERROR_NOT_EXISTS                     PROFILE does not exist
+  $ERROR_ALREADY_USING                     Already using PROFILE
+  $ERROR_OVERRIDEN                     Profile is being overriden
+  $ERROR_NO_CURRENT                     Current profile is not available
 EOF
 }
 
