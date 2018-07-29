@@ -48,7 +48,7 @@ Commands:
   remove                Deletes a profile
   rename                Allows renaming a profile
 
-Arguments:
+Parameters:
   PROFILE, NEW_PROFILE  Unique identifier to a profile (it could be a username)
   NAME                  The name Git will use in commits
   EMAIL                 The email Git will use in commits

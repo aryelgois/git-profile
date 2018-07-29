@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning].
 
 ### Fixed
 - Internal argument expansion
+- Typo in help section
 
 ### Security
 
