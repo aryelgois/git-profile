@@ -296,10 +296,10 @@ case $COMMAND in
     -h|--help)    gitprofile_help;;
     -v|--version) gitprofile_version;;
     add)          gitprofile_add "$@";;
-    edit)         gitprofile_edit "$1";;
+    edit)         gitprofile_edit "$@";;
     list)         gitprofile_list;;
-    remove)       gitprofile_remove "$1";;
+    remove)       gitprofile_remove "$@";;
     rename)       gitprofile_rename "$@";;
-    --)           gitprofile_use "$1";;
+    --)           gitprofile_use "$@";;
     *)            gitprofile_use "$COMMAND";;
 esac

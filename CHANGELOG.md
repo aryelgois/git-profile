@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning].
 ### Removed
 
 ### Fixed
+- Internal argument expansion
 
 ### Security
 
