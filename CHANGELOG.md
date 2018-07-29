@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning].
 ### Changed
 - Rewrite `check_profile()`
 - `edit`, `remove` and `rename` commands accept `--current`
+- `add` uses `user.*` configs as placeholders
+  when only `PROFILE` parameter is passed
+  and there is no current profile set
+  - It also automatically sets the current profile for convenience
 
 ### Deprecated
 

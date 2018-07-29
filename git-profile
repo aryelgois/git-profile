@@ -79,11 +79,39 @@ EOF
 
 gitprofile_add () {
     PROFILE=$(check_profile --new "$@")
-    NAME=$(read_empty "$2" 'User name')
-    EMAIL=$(read_empty "$3" 'User email')
+
+    set +e
+    $gc --get profile.current > /dev/null
+    HAS_CURRENT=$?
+    set -e
+
+    USER_NAME=
+    USER_EMAIL=
+    if [[ $# -eq 1 && $HAS_CURRENT -ne 0 ]]; then
+        USER_NAME=$($gc --get user.name || true)
+        USER_EMAIL=$($gc --get user.email || true)
+    fi
+
+    if [[ -n $USER_NAME ]]; then
+        NAME=$(read_input "$USER_NAME" 'User name')
+    else
+        NAME=$(read_empty "$2" 'User name')
+    fi
+
+    if [[ -n $USER_EMAIL ]]; then
+        EMAIL=$(read_input "$USER_EMAIL" 'User email')
+    else
+        EMAIL=$(read_empty "$3" 'User email')
+    fi
 
     $gc "profile.$PROFILE.name" "$NAME"
     $gc "profile.$PROFILE.email" "$EMAIL"
+
+    if [[ $HAS_CURRENT -ne 0 ]]; then
+        echo 'Using this profile now'
+        $gc profile.current "$PROFILE"
+        use_profile "$PROFILE"
+    fi
 }
 
 gitprofile_current () {
