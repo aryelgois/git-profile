@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning].
 
 ### Added
 - `--current` option
+- Description for `--`
 
 ### Changed
 - Rewrite `check_profile()`
+- `edit`, `remove` and `rename` commands accept `--current`
 
 ### Deprecated
 

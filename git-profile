@@ -22,9 +22,9 @@ A utility to quickly change your name and email in Git
 Profiles are saved in the global git config
 
 Usage: $PROGRAM add PROFILE [NAME] [EMAIL]
-  or:  $PROGRAM rename PROFILE [NEW_PROFILE]
-  or:  $PROGRAM edit PROFILE
-  or:  $PROGRAM remove PROFILE
+  or:  $PROGRAM rename -c|--current|PROFILE [NEW_PROFILE]
+  or:  $PROGRAM edit -c|--current|PROFILE
+  or:  $PROGRAM remove -c|--current|PROFILE
   or:  $PROGRAM list
   or:  $PROGRAM PROFILE
   or:  $PROGRAM
@@ -38,6 +38,8 @@ Options:
                         a placeholder
   -h, --help            Output this message
   -v, --version         Output the version, copyright and license
+  --                    Stops the processing of more options, allowing to use a
+                        PROFILE without conflicting with other options
 
 Commands:
   add                   Creates a new profile
@@ -99,6 +101,9 @@ gitprofile_current () {
 
 gitprofile_edit () {
     PROFILE=$(check_profile --exists "$@")
+    case $1 in
+        -c|--current) echo "Editing '$PROFILE'";;
+    esac
 
     OLD_NAME=$($gc --get "profile.$PROFILE.name")
     NAME=$(read_input "$OLD_NAME" 'User name')
@@ -147,6 +152,9 @@ gitprofile_list () {
 
 gitprofile_remove () {
     PROFILE=$(check_profile --exists "$@")
+    case $1 in
+        -c|--current) echo "Removing '$PROFILE'";;
+    esac
 
     $gc --remove-section "profile.$PROFILE"
 
@@ -161,6 +169,9 @@ gitprofile_remove () {
 
 gitprofile_rename () {
     PROFILE=$(check_profile --exists "$@")
+    case $1 in
+        -c|--current) echo "Renaming '$PROFILE'";;
+    esac
 
     NEW_PROFILE=$(read_empty "$2" 'New profile')
     NEW_PROFILE=$(check_profile --new "$NEW_PROFILE")
@@ -221,6 +232,17 @@ gitprofile_whoami () {
 check_profile () {
     OPTION=$1
     shift
+
+    if [[ -z $DOUBLE_DASH ]]; then
+        if [[ $1 == '--' ]]; then
+            DOUBLE_DASH=--
+            shift
+        else
+            case $1 in
+                -c|--current) set -- "$(gitprofile_current)";;
+            esac
+        fi
+    fi
 
     [[ $# -eq 0 ]] && echoerr 2 'Error: Missing profile'
     [[ -z $1 ]] && echoerr 4 'Error: Profile is empty'
@@ -307,6 +329,9 @@ if [[ $# -eq 0 ]]; then
     gitprofile_whoami
     exit
 fi
+
+DOUBLE_DASH=
+[[ $1 == '--' ]] && DOUBLE_DASH=--
 
 COMMAND=$1
 shift
