@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning].
 ### Added
 
 ### Changed
+- Rewrite `check_profile()`
 
 ### Deprecated
 

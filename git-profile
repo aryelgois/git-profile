@@ -71,7 +71,7 @@ EOF
 }
 
 gitprofile_add () {
-    PROFILE=$(check_profile "$1" $# new)
+    PROFILE=$(check_profile --new "$@")
     NAME=$(read_empty "$2" 'User name')
     EMAIL=$(read_empty "$3" 'User email')
 
@@ -80,7 +80,7 @@ gitprofile_add () {
 }
 
 gitprofile_edit () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
 
     OLD_NAME=$($gc --get "profile.$PROFILE.name")
     NAME=$(read_input "$OLD_NAME" 'User name')
@@ -128,7 +128,7 @@ gitprofile_list () {
 }
 
 gitprofile_remove () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
 
     $gc --remove-section "profile.$PROFILE"
 
@@ -142,10 +142,10 @@ gitprofile_remove () {
 }
 
 gitprofile_rename () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
 
     NEW_PROFILE=$(read_empty "$2" 'New profile')
-    NEW_PROFILE=$(check_profile "$NEW_PROFILE" $# new)
+    NEW_PROFILE=$(check_profile --new "$NEW_PROFILE")
 
     NAME=$($gc --get "profile.$PROFILE.name")
     EMAIL=$($gc --get "profile.$PROFILE.email")
@@ -162,7 +162,7 @@ gitprofile_rename () {
 }
 
 gitprofile_use () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
 
     CURRENT=$($gc --get profile.current || true)
     if [[ -n $CURRENT ]]; then
@@ -201,28 +201,29 @@ gitprofile_whoami () {
 # helper
 
 check_profile () {
-    if [[ -z $1 ]]; then
-        if [[ $2 -eq 0 ]]; then
-            echoerr 2 'Error: Missing profile'
-        else
-            echoerr 4 'Error: Profile is empty'
-        fi
-    else
-        if [[ $foo == *$'\n'* ]]; then
-            echoerr 4 'Error: Profile contains invalid character'
-        fi
-    fi
+    OPTION=$1
+    shift
+
+    [[ $# -eq 0 ]] && echoerr 2 'Error: Missing profile'
+    [[ -z $1 ]] && echoerr 4 'Error: Profile is empty'
+    [[ $1 == *$'\n'* ]] && echoerr 4 'Error: Profile contains invalid character'
 
     set +e
     $gc --get-regexp "^profile\.$1\." > /dev/null
     EXISTS=$?
     set -e
 
-    if [[ $EXISTS -eq 0 && $3 == 'new' ]]; then
-        echoerr 8 'Error: Profile already exists'
-    elif [[ $EXISTS -ne 0 && $3 == 'exists' ]]; then
-        echoerr 16 "Error: Profile '$1' does not exist"
-    fi
+    case $OPTION in
+        --new)
+            [[ $EXISTS -eq 0 ]] && echoerr 8 'Error: Profile already exists'
+            ;;
+        --exists)
+            [[ $EXISTS -ne 0 ]] && echoerr 16 "Error: Profile '$1' does not exist"
+            ;;
+        *)
+            echoerr 1 'Error: Invalid option for check_profile'
+            ;;
+    esac
 
     echo $1
 }
