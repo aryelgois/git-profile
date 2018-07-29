@@ -80,10 +80,7 @@ EOF
 gitprofile_add () {
     PROFILE=$(check_profile --new "$@")
 
-    set +e
-    $gc --get profile.current > /dev/null
-    HAS_CURRENT=$?
-    set -e
+    HAS_CURRENT=$(get_exit $gc --get profile.current)
 
     USER_NAME=
     USER_EMAIL=
@@ -276,10 +273,7 @@ check_profile () {
     [[ -z $1 ]] && echoerr 4 'Error: Profile is empty'
     [[ $1 == *$'\n'* ]] && echoerr 4 'Error: Profile contains invalid character'
 
-    set +e
-    $gc --get-regexp "^profile\.$1\." > /dev/null
-    EXISTS=$?
-    set -e
+    EXISTS=$(get_exit $gc --get-regexp "^profile\.$1\.")
 
     case $OPTION in
         --new)
@@ -337,6 +331,13 @@ echoerr () {
 
 echowarn () {
     >&2 colored "$1" '43;30'
+}
+
+get_exit () {
+    set +e
+    $* > /dev/null
+    echo $?
+    set -e
 }
 
 read_empty () {

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning].
 ### Added
 - `--current` option
 - Description for `--`
+- `get_exit()`
 
 ### Changed
 - Rewrite `check_profile()`
