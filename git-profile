@@ -9,8 +9,16 @@
 set -e
 
 PROGRAM="$(basename "$0")"
-VERSION=0.1.1
+VERSION=0.2.0
 
+ERROR_UNKNOWN=1
+ERROR_MISSING=2
+ERROR_INVALID=3
+ERROR_EXISTS=4
+ERROR_NOT_EXISTS=5
+ERROR_ALREADY_USING=6
+ERROR_OVERRIDEN=7
+ERROR_NO_CURRENT=8
 
 gc='git config --global'
 
@@ -22,18 +30,24 @@ A utility to quickly change your name and email in Git
 Profiles are saved in the global git config
 
 Usage: $PROGRAM add PROFILE [NAME] [EMAIL]
-  or:  $PROGRAM rename PROFILE [NEW_PROFILE]
-  or:  $PROGRAM edit PROFILE
-  or:  $PROGRAM remove PROFILE
+  or:  $PROGRAM rename -c|--current|PROFILE [NEW_PROFILE]
+  or:  $PROGRAM edit -c|--current|PROFILE
+  or:  $PROGRAM remove -c|--current|PROFILE
   or:  $PROGRAM list
   or:  $PROGRAM PROFILE
   or:  $PROGRAM
+  or:  $PROGRAM -c|--current
   or:  $PROGRAM -h|--help
   or:  $PROGRAM -v|--version
 
 Options:
+  -c, --current         Represents the current profile. When used alone, outputs
+                        the current profile; when used after a command, acts as
+                        a placeholder
   -h, --help            Output this message
   -v, --version         Output the version, copyright and license
+  --                    Stops the processing of more options, allowing to use a
+                        PROFILE without conflicting with other options
 
 Commands:
   add                   Creates a new profile
@@ -42,19 +56,20 @@ Commands:
   remove                Deletes a profile
   rename                Allows renaming a profile
 
-Arguments:
+Parameters:
   PROFILE, NEW_PROFILE  Unique identifier to a profile (it could be a username)
   NAME                  The name Git will use in commits
   EMAIL                 The email Git will use in commits
 
 Error Codes:
-  1                     Unknown error
-  2                     Missing parameter
-  4                     Invalid PROFILE
-  8                     PROFILE already exists
-  16                    PROFILE does not exist
-  32                    Already using PROFILE
-  64                    Profile is being overriden
+  $ERROR_UNKNOWN                     Unknown error
+  $ERROR_MISSING                     Missing parameter
+  $ERROR_INVALID                     Invalid PROFILE
+  $ERROR_EXISTS                     PROFILE already exists
+  $ERROR_NOT_EXISTS                     PROFILE does not exist
+  $ERROR_ALREADY_USING                     Already using PROFILE
+  $ERROR_OVERRIDEN                     Profile is being overriden
+  $ERROR_NO_CURRENT                     Current profile is not available
 EOF
 }
 
@@ -71,16 +86,57 @@ EOF
 }
 
 gitprofile_add () {
-    PROFILE=$(check_profile "$1" $# new)
-    NAME=$(read_empty "$2" 'User name')
-    EMAIL=$(read_empty "$3" 'User email')
+    PROFILE=$(check_profile --new "$@")
+
+    HAS_CURRENT=$(get_exit $gc --get profile.current)
+
+    USER_NAME=
+    USER_EMAIL=
+    if [[ $# -eq 1 && $HAS_CURRENT -ne 0 ]]; then
+        USER_NAME=$($gc --get user.name || true)
+        USER_EMAIL=$($gc --get user.email || true)
+    fi
+
+    if [[ -n $USER_NAME ]]; then
+        NAME=$(read_input "$USER_NAME" 'User name')
+    else
+        NAME=$(read_empty "$2" 'User name')
+    fi
+
+    if [[ -n $USER_EMAIL ]]; then
+        EMAIL=$(read_input "$USER_EMAIL" 'User email')
+    else
+        EMAIL=$(read_empty "$3" 'User email')
+    fi
 
     $gc "profile.$PROFILE.name" "$NAME"
     $gc "profile.$PROFILE.email" "$EMAIL"
+
+    if [[ $HAS_CURRENT -ne 0 ]]; then
+        echo 'Using this profile now'
+        $gc profile.current "$PROFILE"
+        use_profile "$PROFILE"
+    fi
+}
+
+gitprofile_current () {
+    set +e
+    CURRENT=$($gc --get profile.current)
+    STATUS=$?
+    set -e
+
+    if [[ $STATUS -ne 0 ]]; then
+        echoerr $ERROR_NO_CURRENT "You don't have a current profile"
+    fi
+
+    echo $CURRENT
 }
 
 gitprofile_edit () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
+    case $1 in
+        -c|--current) echo "Editing '$PROFILE'";;
+    esac
 
     OLD_NAME=$($gc --get "profile.$PROFILE.name")
     NAME=$(read_input "$OLD_NAME" 'User name')
@@ -128,7 +184,10 @@ gitprofile_list () {
 }
 
 gitprofile_remove () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
+    case $1 in
+        -c|--current) echo "Removing '$PROFILE'";;
+    esac
 
     $gc --remove-section "profile.$PROFILE"
 
@@ -142,10 +201,13 @@ gitprofile_remove () {
 }
 
 gitprofile_rename () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
+    case $1 in
+        -c|--current) echo "Renaming '$PROFILE'";;
+    esac
 
     NEW_PROFILE=$(read_empty "$2" 'New profile')
-    NEW_PROFILE=$(check_profile "$NEW_PROFILE" $# new)
+    NEW_PROFILE=$(check_profile --new "$NEW_PROFILE")
 
     NAME=$($gc --get "profile.$PROFILE.name")
     EMAIL=$($gc --get "profile.$PROFILE.email")
@@ -162,12 +224,12 @@ gitprofile_rename () {
 }
 
 gitprofile_use () {
-    PROFILE=$(check_profile "$1" $# exists)
+    PROFILE=$(check_profile --exists "$@")
 
     CURRENT=$($gc --get profile.current || true)
     if [[ -n $CURRENT ]]; then
         if [[ $PROFILE == $CURRENT ]]; then
-            echoerr 32 'Error: Already using this profile'
+            echoerr $ERROR_ALREADY_USING 'Error: Already using this profile'
         else
             echo "Changing from $CURRENT to $PROFILE"
         fi
@@ -201,28 +263,37 @@ gitprofile_whoami () {
 # helper
 
 check_profile () {
-    if [[ -z $1 ]]; then
-        if [[ $2 -eq 0 ]]; then
-            echoerr 2 'Error: Missing profile'
+    OPTION=$1
+    shift
+
+    if [[ -z $DOUBLE_DASH ]]; then
+        if [[ $1 == '--' ]]; then
+            DOUBLE_DASH=--
+            shift
         else
-            echoerr 4 'Error: Profile is empty'
-        fi
-    else
-        if [[ $foo == *$'\n'* ]]; then
-            echoerr 4 'Error: Profile contains invalid character'
+            case $1 in
+                -c|--current) set -- "$(gitprofile_current)";;
+            esac
         fi
     fi
 
-    set +e
-    $gc --get-regexp "^profile\.$1\." > /dev/null
-    EXISTS=$?
-    set -e
+    [[ $# -eq 0 ]] && echoerr $ERROR_MISSING 'Error: Missing profile'
+    [[ -z $1 ]] && echoerr $ERROR_INVALID 'Error: Profile is empty'
+    [[ $1 == *$'\n'* ]] && echoerr $ERROR_INVALID 'Error: Profile contains invalid character'
 
-    if [[ $EXISTS -eq 0 && $3 == 'new' ]]; then
-        echoerr 8 'Error: Profile already exists'
-    elif [[ $EXISTS -ne 0 && $3 == 'exists' ]]; then
-        echoerr 16 "Error: Profile '$1' does not exist"
-    fi
+    EXISTS=$(get_exit $gc --get-regexp "^profile\.$1\.")
+
+    case $OPTION in
+        --new)
+            [[ $EXISTS -eq 0 ]] && echoerr $ERROR_EXISTS 'Error: Profile already exists'
+            ;;
+        --exists)
+            [[ $EXISTS -ne 0 ]] && echoerr $ERROR_NOT_EXISTS "Error: Profile '$1' does not exist"
+            ;;
+        *)
+            echoerr $ERROR_UNKNOWN 'Error: Invalid option for check_profile'
+            ;;
+    esac
 
     echo $1
 }
@@ -244,7 +315,7 @@ check_overriden () {
         for i in "${OVERRIDDEN[@]}"; do
             echowarn "- $i"
         done
-        exit 64
+        exit $ERROR_OVERRIDEN
     fi
 }
 
@@ -270,6 +341,13 @@ echowarn () {
     >&2 colored "$1" '43;30'
 }
 
+get_exit () {
+    set +e
+    $* > /dev/null
+    echo $?
+    set -e
+}
+
 read_empty () {
     INPUT=$1
     [[ -z $1 ]] && read -rp "$2: " INPUT
@@ -289,17 +367,21 @@ if [[ $# -eq 0 ]]; then
     exit
 fi
 
+DOUBLE_DASH=
+[[ $1 == '--' ]] && DOUBLE_DASH=--
+
 COMMAND=$1
 shift
 
 case $COMMAND in
+    -c|--current) gitprofile_current;;
     -h|--help)    gitprofile_help;;
     -v|--version) gitprofile_version;;
     add)          gitprofile_add "$@";;
-    edit)         gitprofile_edit "$1";;
+    edit)         gitprofile_edit "$@";;
     list)         gitprofile_list;;
-    remove)       gitprofile_remove "$1";;
+    remove)       gitprofile_remove "$@";;
     rename)       gitprofile_rename "$@";;
-    --)           gitprofile_use "$1";;
+    --)           gitprofile_use "$@";;
     *)            gitprofile_use "$COMMAND";;
 esac
