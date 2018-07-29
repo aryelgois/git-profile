@@ -28,10 +28,14 @@ Usage: $PROGRAM add PROFILE [NAME] [EMAIL]
   or:  $PROGRAM list
   or:  $PROGRAM PROFILE
   or:  $PROGRAM
+  or:  $PROGRAM -c|--current
   or:  $PROGRAM -h|--help
   or:  $PROGRAM -v|--version
 
 Options:
+  -c, --current         Represents the current profile. When used alone, outputs
+                        the current profile; when used after a command, acts as
+                        a placeholder
   -h, --help            Output this message
   -v, --version         Output the version, copyright and license
 
@@ -55,6 +59,7 @@ Error Codes:
   16                    PROFILE does not exist
   32                    Already using PROFILE
   64                    Profile is being overriden
+  128                   Current profile is not available
 EOF
 }
 
@@ -77,6 +82,19 @@ gitprofile_add () {
 
     $gc "profile.$PROFILE.name" "$NAME"
     $gc "profile.$PROFILE.email" "$EMAIL"
+}
+
+gitprofile_current () {
+    set +e
+    CURRENT=$($gc --get profile.current)
+    STATUS=$?
+    set -e
+
+    if [[ $STATUS -ne 0 ]]; then
+        echoerr 128 "You don't have a current profile"
+    fi
+
+    echo $CURRENT
 }
 
 gitprofile_edit () {
@@ -294,6 +312,7 @@ COMMAND=$1
 shift
 
 case $COMMAND in
+    -c|--current) gitprofile_current;;
     -h|--help)    gitprofile_help;;
     -v|--version) gitprofile_version;;
     add)          gitprofile_add "$@";;
