@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning].
   when only `PROFILE` parameter is passed
   and there is no current profile set
   - It also automatically sets the current profile for convenience
+- Use variables to store error codes
 
 ### Deprecated
 

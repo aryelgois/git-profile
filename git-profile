@@ -11,6 +11,14 @@ set -e
 PROGRAM="$(basename "$0")"
 VERSION=0.1.1
 
+ERROR_UNKNOWN=1
+ERROR_MISSING=2
+ERROR_INVALID=4
+ERROR_EXISTS=8
+ERROR_NOT_EXISTS=16
+ERROR_ALREADY_USING=32
+ERROR_OVERRIDEN=64
+ERROR_NO_CURRENT=128
 
 gc='git config --global'
 
@@ -54,14 +62,14 @@ Parameters:
   EMAIL                 The email Git will use in commits
 
 Error Codes:
-  1                     Unknown error
-  2                     Missing parameter
-  4                     Invalid PROFILE
-  8                     PROFILE already exists
-  16                    PROFILE does not exist
-  32                    Already using PROFILE
-  64                    Profile is being overriden
-  128                   Current profile is not available
+  $ERROR_UNKNOWN                     Unknown error
+  $ERROR_MISSING                     Missing parameter
+  $ERROR_INVALID                     Invalid PROFILE
+  $ERROR_EXISTS                     PROFILE already exists
+  $ERROR_NOT_EXISTS                    PROFILE does not exist
+  $ERROR_ALREADY_USING                    Already using PROFILE
+  $ERROR_OVERRIDEN                    Profile is being overriden
+  $ERROR_NO_CURRENT                   Current profile is not available
 EOF
 }
 
@@ -118,7 +126,7 @@ gitprofile_current () {
     set -e
 
     if [[ $STATUS -ne 0 ]]; then
-        echoerr 128 "You don't have a current profile"
+        echoerr $ERROR_NO_CURRENT "You don't have a current profile"
     fi
 
     echo $CURRENT
@@ -221,7 +229,7 @@ gitprofile_use () {
     CURRENT=$($gc --get profile.current || true)
     if [[ -n $CURRENT ]]; then
         if [[ $PROFILE == $CURRENT ]]; then
-            echoerr 32 'Error: Already using this profile'
+            echoerr $ERROR_ALREADY_USING 'Error: Already using this profile'
         else
             echo "Changing from $CURRENT to $PROFILE"
         fi
@@ -269,21 +277,21 @@ check_profile () {
         fi
     fi
 
-    [[ $# -eq 0 ]] && echoerr 2 'Error: Missing profile'
-    [[ -z $1 ]] && echoerr 4 'Error: Profile is empty'
-    [[ $1 == *$'\n'* ]] && echoerr 4 'Error: Profile contains invalid character'
+    [[ $# -eq 0 ]] && echoerr $ERROR_MISSING 'Error: Missing profile'
+    [[ -z $1 ]] && echoerr $ERROR_INVALID 'Error: Profile is empty'
+    [[ $1 == *$'\n'* ]] && echoerr $ERROR_INVALID 'Error: Profile contains invalid character'
 
     EXISTS=$(get_exit $gc --get-regexp "^profile\.$1\.")
 
     case $OPTION in
         --new)
-            [[ $EXISTS -eq 0 ]] && echoerr 8 'Error: Profile already exists'
+            [[ $EXISTS -eq 0 ]] && echoerr $ERROR_EXISTS 'Error: Profile already exists'
             ;;
         --exists)
-            [[ $EXISTS -ne 0 ]] && echoerr 16 "Error: Profile '$1' does not exist"
+            [[ $EXISTS -ne 0 ]] && echoerr $ERROR_NOT_EXISTS "Error: Profile '$1' does not exist"
             ;;
         *)
-            echoerr 1 'Error: Invalid option for check_profile'
+            echoerr $ERROR_UNKNOWN 'Error: Invalid option for check_profile'
             ;;
     esac
 
@@ -307,7 +315,7 @@ check_overriden () {
         for i in "${OVERRIDDEN[@]}"; do
             echowarn "- $i"
         done
-        exit 64
+        exit $ERROR_OVERRIDEN
     fi
 }
 
